@@ -46,88 +46,142 @@ class_diag <- function(score, truth, positive, cutoff=.5){
 
 # Mining, Classification, Prediction
 
-## Name and EID here
+## Zach Mann zm4272
 
 ### Introduction 
 
-Paragraph or two introducing your datasets and variables, why they are interesting to you, etc. See instructions for more information
+In this project, I am using the NBA historical data from fivethirtyeight that I used in project 1. I wanted to further explore the relationships between these statistics and their ability to accurately reflect a player's performance. I haven't had much time to keep up with sports this semester but I watch the occasional NBA game here and there. 
+
+This dataset, which I renamed “nbadata”, contains the players’ names (player), a player id variable to give them a unique identifier (player_id), the season the stats displayed are from (season), the type variable is either regular season or playoff data (type), the players age on Feb. 1 of that season (age), the team played for (team_id), the players’ primary position (pos), the team’s efficiency rating (tmRtg), the franchise played for which is meant to account for changes in location and name of franchises throughout the years by giving a standard code for each franchise that may not match the team id (franch_id), games played (G), minutes played (Min), share of team minutes played (MP%), minutes per game (MPG), pace-adjusted points per 36 minutes (P/36), true shooting percentage (TS%), pace-adjusted assists per 36 minutes (A/36), pace-adjusted rebounds per 36 minutes (R/36), pace-adjusted steals plus blocks per 36 minutes (SB/36), pace-adjusted turnovers per 36 minutes (TO/36), offensive RAPTOR rating (Raptor O), defensive RAPTOR rating (Raptor D), total RAPTOR rating (Raptor +/-), total RAPTOR wins above replacement (Raptor WAR), player impact estimate (PIE%), PIE% using Alternate Win Score (AWS %), usage rate (USG%), assist rate (AST%), turnover Rate (TOV%), offensive Rebound Rate (ORB%), defensive Rebound Rate (DRB%), total rebound rate (TRB%), steal rate (STL%), block rate (BLK%), offensive rating= points produced per 100 possessions (ORtg), share of team possessions used (%Pos), defensive rating=points allowed per 100 possessions (DRtg), 2-point field goal percentage (2P%), 3-point field goal percentage 3P%), free throw percentage (FT%), share of field goal attempts that were 3-pointers (3PAr), ratio of free throw attempts to field goal attempts (FTar), and player’s effect on team pace (Pace+/-). There are a lot of variables there but they are generally pretty intuitive if you have a basic understanding of basketball stats. Many of the variables are advanced metrics computed to give further insight into a player’s value rather than simply the traditional stats such as points, assists, rebounds, blocks, steals, etc. RAPTOR is another advanced metric created by fivethirtyeight that measures how well a player’s team does when he is on and off the court, similar to a traditional +/- statistic that conveys how many points the team led or trailed by during the time that a particular player was on the court. The following columns are not included in the playoff data: tmRtg, MP%, P/36, A/36, R/36, SB/36, TO/36, PIE%, AWS%, ORtg, %Pos, DRtg, 2P%, 3P%, and FT%. There are 28719 observations of 42 variables in total. I changed the NULL values to NAs and then omitted all NAs to potentially simplify later manipulation of the data. After omitting the NAs, there are 19489 observations. 
 
 ```{R}
 library(tidyverse)
-# read your datasets in here, e.g., with read_csv()
+library(readr)
+nba_data_historical <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/nba-player-advanced-metrics/master/nba-data-historical.csv")
 
-# if your dataset needs tidying, do so here
+nbadata <- nba_data_historical %>% rename(season = year_id) %>% rename(player = name_common)
 
-# any other code here
+is.na(nbadata) <- nbadata == "NULL"
+
+na.omit(nbadata) -> nbadata
 ```
 
 ### Cluster Analysis
 
 ```{R}
 library(cluster)
-# clustering code here
+nbadata %>% select("USG.", "AST.", "TOV.") -> nbaclust
+
+sil_width <- vector()
+for (i in 2:10) {
+    kms <- kmeans(nbaclust, centers = i)
+    sil <- silhouette(kms$cluster, dist(nbaclust))
+    sil_width[i] <- mean(sil[, 3])
+}
+ggplot() + geom_line(aes(x = 1:10, y = sil_width)) + 
+    scale_x_continuous(name = "k", breaks = 1:10)
+
+nba_pam <- nbaclust %>% pam(k = 2)
+nba_pam %>% plot(which = 2)
+
+nbadata %>% slice(nba_pam$id.med)
+
+library(GGally)
+nbaclust %>% mutate(cluster = as.factor(nba_pam$clustering)) %>% ggpairs(cols = 1:3, aes(color = cluster))
 ```
 
-Discussion of clustering here
-    
+I first created a subset of my data with the variables for usage rate, assist rate, and turnover rate.  Then, using the silhoutte width method I found that the ideal amount of clusters was 2 with an average silhoutte width of 0.4. This is within the range of a weak structure and means that it may be artificial. There is a very small positive correlation between these variables which seems somewhat reasonable. It makes sense for a player with a higher usage rate to have a higher assist or turnover rate because the ball is in their hands a lot. Also, although it seems odd as assists are an indicator of good playmaking and turnovers are an indicator of bad playmaking, it kind of makes sense that the rates of these stats would be positively corellated. This is due to the fact that someone who has a high assist rate probably handles and passes the ball at a higher rate, which would lead to a higher turnover rate. A better stat to evaluate this would be the assist to turnover ratio which is commonly used by may not translate as well when evaluating assist and turnover rates rather than the raw numbers. The correlations are quite low so there isn't a clear relationship. I also found the medoids which were Vernon Maxwell in the 1990 season and Johan Petro in the 2011 season.
     
 ### Dimensionality Reduction with PCA
 
 ```{R}
-# PCA code here
+pca1 <- princomp(nbaclust, cor = T)
+eigval <- pca1$sdev^2
+varprop = round(eigval/sum(eigval), 2)
+ggplot() + geom_bar(aes(y = varprop, x = 1:3), stat = "identity") + geom_text(aes(x = 1:3, y = varprop, label = round(varprop, 2)))
+summary(pca1, loadings = T)
 ```
 
-Discussions of PCA here. 
+PC1 represents the usage rate as measured by all of the variables. The higher an individual's PC1 scores, the higher their usage rate is. PC2 represents a usage vs turnover rate axis. Higher scores on PC2 represent higher usage rates and lower turnover rates. PC3 represents a usage rate/turnover rate vs.assist rate axis. Higher PC3 scores represent higher usage rates and turnover rates and lower assist rates.
 
 ###  Linear Classifier
 
 ```{R}
-# linear classifier code here
+nbadata %>% rename(isguard = pos) %>% mutate(isguard=recode(isguard, 'PG'='1', 'SG'='1', 'G'='1', 'SF'='0', 'PF'='0', 'C'='0', 'C-F'='0', 'F-C'='0', 'F'='0')) -> nbadatabinary
+sample_n(nbadatabinary, 5000) -> nbasamplin
+
+glm(isguard ~ A.36 + R.36 + SB.36 + TO.36 + USG. + AST. + TOV. + ORB. + DRB. + STL. + BLK. , data=nbasamplin, family="binomial") -> logistic_fit
+prob_reg <- predict(logistic_fit)
+class_diag(prob_reg, truth = nbasamplin$isguard, positive = 1)
+table(truth = nbasamplin$isguard, predictions = prob_reg>.5)
 ```
 
 ```{R}
-# cross-validation of linear classifier here
+nbasamplin %>% mutate(isguard=recode(isguard, '0'='yes', '1'='no')) -> nbalincv
+library(caret)
+set.seed(1234)
+cv <- trainControl(method="cv", number = 5, classProbs = T, savePredictions = T)
+fit <- train(isguard ~ A.36 + R.36 + SB.36 + TO.36 + USG. + AST. + TOV. + ORB. + DRB. + STL. + BLK., data=nbalincv, trControl=cv, method="glm")
+class_diag(fit$pred$pred, fit$pred$obs, positive=1)
 ```
 
-Discussion here
+I created a binary variable by changing the position variable to a binary of whether a player is a guard or not. I then created a model to predict isguard from assists per 36 minutes, rebounds per 36 minutes, steals + blocks per 36 minutes, turnovers per 36 minutes, usage rate, assist rate, turnover rate, offensive rebound rate, defensive rebound rate, steal rate and block rate using logistic regression. I had to create a sample of my data because it was too big. The model is performing very well according to the AUC value of about 0.97 (changes every time I run it because of the random sample). I had to mess around with the size to balance having a large enough sample size to not get an AUC of 1 and not crashing R and 5000 seems to work well. For some reason the cross validation was having trouble working with a binary so I changed it from 1 and 0 to yes and no. I was able to go through the steps to obtain the desired table with no errors but the AUC value was NA and I'm not sure why.  
 
 ### Non-Parametric Classifier
 
 ```{R}
 library(caret)
-# non-parametric classifier code here
+sample_n(nbadatabinary, 500) -> nbasamp
+knn_fit <- knn3(isguard == "1" ~ A.36 + R.36 + SB.36 + TO.36 + USG. + AST. + TOV. + ORB. + DRB. + STL. + BLK., data = nbasamp)
+prob_knn <- predict(knn_fit, nbasamp)
+class_diag(prob_knn[, 1], nbasamp$isguard, positive = "0")
 ```
 
 ```{R}
-# cross-validation of np classifier here
+nbasamp %>% mutate(isguard=recode(isguard, '0'='yes', '1'='no')) -> nbanonparcv
+set.seed(1234)
+cv <- trainControl(method="cv", number = 5, classProbs = T, savePredictions = T)
+knncvfit <- fit <- train(isguard ~ A.36 + R.36 + SB.36 + TO.36 + USG. + AST. + TOV. + ORB. + DRB. + STL. + BLK., data=nbanonparcv, trControl=cv, method="knn")
+class_diag(knncvfit$pred$pred, knncvfit$pred$obs, positive=1)
 ```
 
-Discussion
+I had to create a sample of my data because my original attempts to perform knn were not working and r kept crashing due to the size of my data. The model is performing very well according to the AUC value of about 0.97 (changes every time I run it because of the random sample). I had to change the binary variable from 1 and 0 to yes and no again. Similarly, I was able to do all the code in a way that seemed correct to me but the resulting AUC value was NA.
 
 
 ### Regression/Numeric Prediction
 
 ```{R}
-# regression model code here
+fit<-lm(TS.~A.36 + R.36 + SB.36 + TO.36 + USG. + AST. + TOV. + ORB. + DRB. + STL. + BLK.,data=nbadatabinary)
+yhat<-predict(fit)
+mean((nbadatabinary$TS.-yhat)^2)
 ```
 
 ```{R}
-# cross-validation of regression model here
+set.seed(1234)
+cv <- trainControl(method="cv", number = 5, classProbs = T, savePredictions = T)
+fit <- train(TS. ~ A.36 + R.36 + SB.36 + TO.36 + USG. + AST. + TOV. + ORB. + DRB. + STL. + BLK., data=nbadatabinary, trControl=cv, method="rpart")
+min(fit$results$RMSE)^2
 ```
 
-Discussion
+I fit a linear regression model to the dataset, predicting true shooting % from all of the variables I used in the linear and non-parametric classifier sections. The resulting MSE is 75.318. The resulting MSE from the cross validation is 91.784. There does seem to be some overfitting as the MSE from the model is considerably lower than the MSE from cv although they are both very high indicating prediction error. 
 
 ### Python 
 
 ```{R}
 library(reticulate)
+use_python("/usr/bin/python3", required = F)
 ```
 
 ```{python}
-# python code here
+nbadata = r.nbadata
+type(nbadata)
+import numpy as np
+np.mean(nbadata.age)
+np.median(nbadata.age)
+np.var(nbadata.age)
 ```
 
-Discussion
+I brought the nbadata dataset into pyhton. Then, I found the type of this object (dataframe), and the mean, median and variance of the age variable. 
 
 ### Concluding Remarks
 
