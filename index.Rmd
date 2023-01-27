@@ -181,7 +181,8 @@ np.median(nbadata.age)
 np.var(nbadata.age)
 ```
 
-I brought the nbadata dataset into python. Then, I found the type of this object (dataframe), and the mean, median and variance of the age variable. 
+I brought the nbadata dataset into python. Then, I found the type of this object (dataframe), and the mean, median and variance of the age variable.
+
 
 
 
