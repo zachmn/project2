@@ -90,7 +90,7 @@ library(GGally)
 nbaclust %>% mutate(cluster = as.factor(nba_pam$clustering)) %>% ggpairs(cols = 1:3, aes(color = cluster))
 ```
 
-I first created a subset of my data with the variables for usage rate, assist rate, and turnover rate.  Then, using the silhoutte width method I found that the ideal amount of clusters was 2 with an average silhoutte width of 0.4. This is within the range of a weak structure and means that it may be artificial. There is a very small positive correlation between these variables which seems somewhat reasonable. It makes sense for a player with a higher usage rate to have a higher assist or turnover rate because the ball is in their hands a lot. Also, although it seems odd as assists are an indicator of good playmaking and turnovers are an indicator of bad playmaking, it kind of makes sense that the rates of these stats would be positively corellated. This is due to the fact that someone who has a high assist rate probably handles and passes the ball at a higher rate, which would lead to a higher turnover rate. A better stat to evaluate this would be the assist to turnover ratio which is commonly used by may not translate as well when evaluating assist and turnover rates rather than the raw numbers. The correlations are quite low so there isn't a clear relationship. I also found the medoids which were Vernon Maxwell in the 1990 season and Johan Petro in the 2011 season.
+I first created a subset of my data with the variables for usage rate, assist rate, and turnover rate.  Then, using the silhoutte width method I found that the ideal amount of clusters was 2 with an average silhoutte width of 0.4. This is within the range of a weak structure and means that it may be artificial. There is a very small positive correlation between these variables which seems somewhat reasonable. It makes sense for a player with a higher usage rate to have a higher assist or turnover rate because the ball is in their hands a lot. Also, although it seems odd as assists are an indicator of good playmaking and turnovers are an indicator of bad playmaking, it kind of makes sense that the rates of these stats would be positively corellated. This is due to the fact that someone who has a high assist rate probably handles and passes the ball at a higher rate, which would lead to a higher turnover rate. A better stat to evaluate this would be the assist to turnover ratio which is commonly used but may not translate as well when evaluating assist and turnover rates rather than the raw numbers. The correlations are quite low so there isn't a clear relationship. I also found the medoids which were Vernon Maxwell in the 1990 season and Johan Petro in the 2011 season.
     
 ### Dimensionality Reduction with PCA
 
@@ -181,11 +181,8 @@ np.median(nbadata.age)
 np.var(nbadata.age)
 ```
 
-I brought the nbadata dataset into pyhton. Then, I found the type of this object (dataframe), and the mean, median and variance of the age variable. 
+I brought the nbadata dataset into python. Then, I found the type of this object (dataframe), and the mean, median and variance of the age variable. 
 
-### Concluding Remarks
-
-Include concluding remarks here, if any
 
 
 
